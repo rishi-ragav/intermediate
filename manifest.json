@@ -8,7 +8,8 @@
     "activeTab"
   ],
   "icons":{
-    "64": "icon.png"
+    "64": "time_tracker_64.png",
+    "128": "time_tracker_128.png"
   },
   "action": {
     "default_popup": "popup.html"
