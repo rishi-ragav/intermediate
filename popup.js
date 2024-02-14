@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to update the time data in the popup
     function updateTimeData() {
-        chrome.storage.local.get(['totalTime', 'websites'], function(result) {
+        chrome.storage.sync.get(['totalTime', 'websites'], function(result) {
             var totalTime = result.totalTime || 0;
             var websites = result.websites || {};
 
