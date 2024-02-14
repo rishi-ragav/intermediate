@@ -1,55 +1,69 @@
-// Initialize storage
-chrome.runtime.onInstalled.addListener(function() {
-    chrome.storage.local.get(['totalTime', 'websites', 'activeTab'], function(result) {
-        if (!result.totalTime) {
-            chrome.storage.local.set({ 'totalTime': 0 });
-        }
-        if (!result.websites) {
-            chrome.storage.local.set({ 'websites': {} });
-        }
-        if (!result.activeTab) {
-            chrome.storage.local.set({ 'activeTab': {} });
+// Check if date has changed
+function checkDateChange() {
+    chrome.storage.local.get('lastDate', function(result) {
+        var lastDate = result.lastDate;
+
+        var currentDate = new Date();
+        var currentDateString = currentDate.toDateString();
+
+        if (lastDate !== currentDateString) {
+            // Date has changed, reset time data
+            chrome.storage.local.set({
+                'websites': {},
+                'totalTime': 0,
+                'lastDate': currentDateString
+            });
         }
     });
-});
+}
+
+// Check date change on extension start
+checkDateChange();
 
 // Update time spent on the active tab
 setInterval(function() {
+    checkDateChange(); // Check for date change
+
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (tabs && tabs.length > 0) {
             var activeTab = tabs[0];
             var hostname = new URL(activeTab.url).hostname;
 
+            var currentTime = Date.now();
+
             chrome.storage.local.get('activeTab', function(result) {
                 var activeTabData = result.activeTab;
-                var lastActiveTabId = activeTabData.tabId;
-                var lastActiveTabTime = activeTabData.time;
-                var currentTime = Date.now();
+                var lastActiveTabId = activeTabData ? activeTabData.tabId : null;
+                var lastActiveTabTime = activeTabData ? activeTabData.time : null;
 
                 if (lastActiveTabId === activeTab.id) {
-                    var elapsedTime = currentTime - lastActiveTabTime;
+                    var elapsedTime = currentTime - lastActiveTabTime || 0;
 
-                    // Update time spent on the current website
-                    chrome.storage.local.get('websites', function(result) {
+                    chrome.storage.local.get(['websites', 'totalTime'], function(result) {
                         var websites = result.websites || {};
+                        var totalTime = result.totalTime || 0;
+
+                        // Update time spent on the current website
                         var timeSpent = websites[hostname] || 0;
                         timeSpent += Math.round(elapsedTime / 1000); // Convert milliseconds to seconds
                         websites[hostname] = timeSpent;
-                        chrome.storage.local.set({ 'websites': websites });
-                    });
 
-                    // Update total time spent
-                    chrome.storage.local.get('totalTime', function(result) {
-                        var totalTime = result.totalTime || 0;
+                        // Update total time spent
                         totalTime += Math.round(elapsedTime / 1000); // Convert milliseconds to seconds
-                        chrome.storage.local.set({ 'totalTime': totalTime });
-                    });
-                }
 
-                chrome.storage.local.set({ 'activeTab': { tabId: activeTab.id, time: currentTime } });
+                        // Save updated data
+                        chrome.storage.local.set({
+                            'websites': websites,
+                            'totalTime': totalTime,
+                            'activeTab': { tabId: activeTab.id, time: currentTime }
+                        });
+                    });
+                } else {
+                    // If the tab changed, update activeTab info
+                    chrome.storage.local.set({ 'activeTab': { tabId: activeTab.id, time: currentTime } });
+                }
             });
         }
-
     });
 }, 1000); // Update every second
 
